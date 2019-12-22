@@ -3,6 +3,17 @@ import ddf.minim.signals.*;
 import ddf.minim.ugens.*;
 import ddf.minim.analysis.*;
 import javax.sound.sampled.*;
+import oscP5.*;
+import netP5.*;
+
+OscP5 oscP5;
+NetAddress netAddress;
+
+String OSC_IP_ADDRESS = "127.0.0.1";
+String OSC_ADDRESS = "/boatcontrol";
+int OSC_EMITTING_PORT = 12000;
+int OSC_LISTENING_PORT = 12001;
+
 
 Minim minim;
 AudioInput in;
@@ -94,20 +105,26 @@ void setup()
   //in = minim.getLineIn();
   
   fft = new FFT( in.bufferSize(), in.sampleRate() );
+  
+  oscP5 = new OscP5(this, OSC_LISTENING_PORT);
+  netAddress = new NetAddress(OSC_IP_ADDRESS, OSC_EMITTING_PORT);
 }
 
 
 void draw() {
+  FrameData fd;
   if (dummyMode) {
-    drawDummyMode();
+    fd = drawDummyMode();
   } else {
-    drawRealMode();
+    fd = drawRealMode();
   }
+  OscMessage message = fd.toOscMessage(OSC_ADDRESS);
+  oscP5.send(message, netAddress);
 }
 
 
 
-void drawRealMode()
+FrameData drawRealMode()
 {
   // compute
 
@@ -236,14 +253,6 @@ void drawRealMode()
 
   
   boolean isBoosting = !isImpulses && energy > ENERGY_THRESH;
-  // transmit data
-  FrameData fd = new FrameData(
-    bestShiftSmoothed.get() / MAX_SAMPLES_SHIFT,  // direction
-    rateSmoothed.get(),                           // paddling frequency
-    energyNormalized,                             // amplitude
-    isBoosting);                                 // isBoosting
-    
-  fd.print();
   
   
   
@@ -284,6 +293,16 @@ void drawRealMode()
   textSize(72); 
   textAlign(CENTER, CENTER);
   text(nf(rateSmoothed.get(), 2, 2), width / 2, height / 2);
+  
+  
+  // transmit data
+  FrameData fd = new FrameData(
+    bestShiftSmoothed.get() / MAX_SAMPLES_SHIFT,  // direction
+    rateSmoothed.get(),                           // paddling frequency
+    energyNormalized,                             // amplitude
+    isBoosting);                                 // isBoosting
+    
+  return fd;
 }
 
 
@@ -431,7 +450,7 @@ float calculateStandardDev (FloatList x, float xBar) {
 
 ////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////// DUMMY MODE
 
-void drawDummyMode () {
+FrameData drawDummyMode () {
   boolean isBoosting = mousePressed;
   float direction = (float)mouseX / (width / 2) - 1;
   float energy = 1 - (float)mouseY / height;
@@ -441,14 +460,7 @@ void drawDummyMode () {
     rateSmoothed.set(0);
   }
   
-  FrameData fd = new FrameData(
-    direction,   // direction
-    rowingRate,  // paddling frequency
-    energy,      // amplitude
-    isBoosting); // isBoosting
-    
-  fd.print();
-  
+ 
   if (isBoosting)
     background(0, 0, 255);
   else
@@ -477,6 +489,14 @@ void drawDummyMode () {
   text(nf(rateSmoothed.get(), 2, 2), width / 2, height / 2);
   
   delay(50);
+  
+  
+  FrameData fd = new FrameData(
+    direction,   // direction
+    rowingRate,  // paddling frequency
+    energy,      // amplitude
+    isBoosting); // isBoosting
+  return fd;
 }
 
 void keyPressed () {
@@ -500,3 +520,11 @@ void keyPressed () {
     dummyMode = !dummyMode;
   }
 }
+
+//void oscEvent(OscMessage theOscMessage) {
+//  /* print the address pattern and the typetag of the received OscMessage */
+//  print("### received an osc message.");
+//  print(" addrpattern: "+theOscMessage.addrPattern());
+//  println(" typetag: "+theOscMessage.typetag());
+//  println(" data: "+theOscMessage.get(0).floatValue());
+//}

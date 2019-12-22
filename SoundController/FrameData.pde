@@ -1,3 +1,5 @@
+import oscP5.*;
+
 public class FrameData {
   
   protected boolean isBoosting;
@@ -14,5 +16,14 @@ public class FrameData {
   
   void print () {
     
+  }
+  
+  OscMessage toOscMessage (String address) {
+    OscMessage message = new OscMessage(address);
+    message.add(this.direction);
+    message.add(this.frequency);
+    message.add(this.amplitude);
+    message.add(this.isBoosting);
+    return message;
   }
 }
