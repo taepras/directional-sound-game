@@ -56,6 +56,8 @@ int lastBeatTime = 0;
 FloatList energyHist = new FloatList();
 int energyHistmaxSize = 60;
 
+boolean dummyMode = true;
+
 FFT fft;
   
 void setup()
@@ -95,8 +97,17 @@ void setup()
 }
 
 
+void draw() {
+  if (dummyMode) {
+    drawDummyMode();
+  } else {
+    drawRealMode();
+  }
+}
 
-void draw()
+
+
+void drawRealMode()
 {
   // compute
 
@@ -414,4 +425,78 @@ float calculateStandardDev (FloatList x, float xBar) {
     sum += dx * dx; 
   }
   return sqrt(sum / x.size());
+}
+
+
+
+////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////// DUMMY MODE
+
+void drawDummyMode () {
+  boolean isBoosting = mousePressed;
+  float direction = (float)mouseX / (width / 2) - 1;
+  float energy = 1 - (float)mouseY / height;
+  float rowingRate = rateSmoothed.get();
+  
+  if (millis() - lastBeatTime > PADDLE_TIMEOUT) {
+    rateSmoothed.set(0);
+  }
+  
+  FrameData fd = new FrameData(
+    direction,   // direction
+    rowingRate,  // paddling frequency
+    energy,      // amplitude
+    isBoosting); // isBoosting
+    
+  fd.print();
+  
+  if (isBoosting)
+    background(0, 0, 255);
+  else
+    background(0);
+  stroke(255);
+  
+  fill(255, 100);
+  noStroke();
+  rect(0, (1 - energy) * height, width, energy * height);
+  
+  stroke(255, 0, 0);
+  line(width / 2, 0, width / 2, height);
+  
+  stroke(255);
+  bestShiftPlotter.addData(direction);
+  bestShiftPlotter.plot(0, 0, width, height, -1, 1);
+  
+  textSize(18);
+  fill(255);
+  textAlign(LEFT, TOP);
+  text("DUMMY MODE: ON", 10, 10);
+  
+  textSize(72);
+  fill(255);
+  textAlign(CENTER, CENTER);
+  text(nf(rateSmoothed.get(), 2, 2), width / 2, height / 2);
+  
+  delay(50);
+}
+
+void keyPressed () {
+  if (dummyMode) {
+    if (key == ' ') {
+      int t = millis();
+      timeTriggered = t;
+    
+      clapCount++;
+      //print("!!!!!!!!!!!!!!!!!!!!!! ");
+      //print(nfp(energy, 1, 4));
+      //print(" ");
+      //println(clapCount);
+      float rate = 1000.0 / (t - lastBeatTime);
+      lastBeatTime = t;
+      rateSmoothed.set(rate);
+    }
+  }
+  
+  if (key == 'd' || key == 'D') {
+    dummyMode = !dummyMode;
+  }
 }
